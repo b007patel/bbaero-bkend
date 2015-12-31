@@ -1,0 +1,94 @@
+Up to date and confirmed for
+ - Wordpress 3.8.5
+ - Apache 2.4.7
+
+1) Install wordpress:
+   => sudo apr-get install wordpress
+
+2) Install PEAR and postfix e-mail server to support Wordpress notifications.
+   Note that without this, blank pages are served by the web server after
+   performing most Wordpress actions (e.g., saving comments, admin tasks).
+
+  (steps from http://stackoverflow.com/questions/19559063/simple-php-mail-function-not-working-on-amazon-server-ec2)
+
+   - Install PEAR
+   => sudo apt-get install php-pear
+
+   - Use PEAR to add modules to it
+   => sudo pear install mail  
+   => sudo pear install Net_SMTP
+   => sudo pear install Auth_SASL   //ignore any deprecation messages for this
+   => sudo pear install mail_mime
+
+   - Install Postfix SMTP server 
+   => sudo apt-get install postfix
+
+   - Restart Apache web server
+   => sudo apache2ctl restart
+
+3) Load the wp-install.php page and give the proper DB parameters when prompted
+
+4) Ensure the custom encryption module is installed as directed (Admin knows
+   how to do this. Necessary files are not in github.)
+
+5) Copy config-default.php into /etc/wordpress. Make owner www-data, set perms
+   to 640
+
+6) Set all contents and subdirectories' contents of /usr/share/wordpress (made
+   by step 1) above) to have www-data as their owner. Only set wp-config.php's
+   perms to 640
+
+7) Modify /usr/share/wordpress/wp-include/load.php as follows:
+   
+   - before the following line in function require_wp_db() (near line 330-335
+      somewhere):
+
+     $wpdb = new wpdb( DB_USER, DB_PASSWORD, DB_NAME, DB_HOST );
+
+     add the following code:
+     ++++++++++
+     //BP - support for rudimentarily encrypted DB pwd
+     if ( !defined('DB_PASSWORD') ) {
+         require_once( '/full/path/to/encryption-module.php' );
+         $tmp_dbpwd = bp_enc( DB_ENC_PWD, false );
+         define( 'DB_PASSWORD', $tmp_dbpwd );
+     }
+     //BP - end code
+     ++++++++++
+
+     The complete snippet should like this:
+     ==========
+     //BP - support for rudimentarily encrypted DB pwd
+     if ( !defined('DB_PASSWORD') ) {
+         require_once( '/home/ubuntu/basic-enc.php' );
+         $tmp_dbpwd = bp_enc( DB_ENC_PWD, false );
+         define( 'DB_PASSWORD', $tmp_dbpwd );
+     }
+     //BP - end code
+
+     $wpdb = new wpdb( DB_USER, DB_PASSWORD, DB_NAME, DB_HOST );
+     ==========
+
+Step 8, listed in smaller steps below, secures Wordpress files hosted by Apache
+8a) Change the following directives in /etc/apache2/apache2.conf (i.e. Apache
+   web server configuration file):
+   - in <Directory /var/www> and <Directory /var/www/blog> change
+   => AllowOverride File
+    to 
+   => AllowOverride None
+
+8b) Add the following lines to /etc/apache2/conf-available/security.conf:
+++++++
+#BP - from https://digwp.com/2010/08/pimp-your-wp-config-php/#security
+# Protect wp-config.php
+<Files wp-config.php>
+        Require  all denied
+</Files>
+++++++ 
+
+9) Issue the following command to allow the bbaero site to access Wordpress:
+   => sudo ln -s /usr/share/wordpress /var/www/blog
+ 
+10) Click on the "Blog" link on the bbaero site's navigation bar to test out
+     Wordpress
+

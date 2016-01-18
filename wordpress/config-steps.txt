@@ -31,14 +31,24 @@ Up to date and confirmed for
 4) Ensure the custom encryption module is installed as directed (Admin knows
    how to do this. Necessary files are not in github.)
 
-5) Copy config-default.php into /etc/wordpress. Make owner www-data, set perms
+5) Make owner of /var/lib/wordpress and its subdirectories www-data. Add the 
+   following lines just before the "?>" line in 
+   /usr/share/wordpress/wp-config.php :
+     ++++++++++
+     /* from http://www.hongkiat.com/blog/update-wordpress-without-ftp/ */
+     define('FS_METHOD','direct');
+     ++++++++++
+
+   This enables wordpress updates without enabling FTP on the AWS instance.
+
+6) Copy config-default.php into /etc/wordpress. Make owner www-data, set perms
    to 640
 
-6) Set all contents and subdirectories' contents of /usr/share/wordpress (made
+7) Set all contents and subdirectories' contents of /usr/share/wordpress (made
    by step 1) above) to have www-data as their owner. Only set wp-config.php's
    perms to 640
 
-7) Modify /usr/share/wordpress/wp-include/load.php as follows:
+8) Modify /usr/share/wordpress/wp-include/load.php as follows:
    
    - before the following line in function require_wp_db() (near line 330-335
       somewhere):
@@ -69,15 +79,15 @@ Up to date and confirmed for
      $wpdb = new wpdb( DB_USER, DB_PASSWORD, DB_NAME, DB_HOST );
      ==========
 
-Step 8, listed in smaller steps below, secures Wordpress files hosted by Apache
-8a) Change the following directives in /etc/apache2/apache2.conf (i.e. Apache
+Step 9, listed in smaller steps below, secures Wordpress files hosted by Apache
+9a) Change the following directives in /etc/apache2/apache2.conf (i.e. Apache
    web server configuration file):
    - in <Directory /var/www> and <Directory /var/www/blog> change
    => AllowOverride File
     to 
    => AllowOverride None
 
-8b) Add the following lines to /etc/apache2/conf-available/security.conf:
+9b) Add the following lines to /etc/apache2/conf-available/security.conf:
 ++++++
 #BP - from https://digwp.com/2010/08/pimp-your-wp-config-php/#security
 # Protect wp-config.php
@@ -86,9 +96,9 @@ Step 8, listed in smaller steps below, secures Wordpress files hosted by Apache
 </Files>
 ++++++ 
 
-9) Issue the following command to allow the bbaero site to access Wordpress:
+10) Issue the following command to allow the bbaero site to access Wordpress:
    => sudo ln -s /usr/share/wordpress /var/www/blog
  
-10) Click on the "Blog" link on the bbaero site's navigation bar to test out
+11) Click on the "Blog" link on the bbaero site's navigation bar to test out
      Wordpress
 

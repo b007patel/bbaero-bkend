@@ -1,6 +1,7 @@
 Up to date and confirmed for
- - Wordpress 3.8.5
- - Apache 2.4.7
+ - Ubuntu 16.0.4 LTS
+ - Wordpress 4.8.1
+ - Apache 2.4.18
 
 1) Install wordpress:
    => {download latest tar.gz from http://wordpress.org}

@@ -3,9 +3,48 @@ Up to date and confirmed for
  - Apache 2.4.7
 
 1) Install wordpress:
-   => sudo apr-get install wordpress
+   => {download latest tar.gz from http://wordpress.org}
+   => {extract tar.gz into a tmp directory. There should only be a
+     'wordpress' dir in the tar.gz}
+   => {move 'wordpress' dir from above to /usr/share. chown -R it
+     to www-data:www-data}
+   => install MariaDB, if not installed
+      => sudo apt-get install mariadb-server
+      => mysql -u root
+         => if connected to DB, proceed to "create WP database"
+      => sudo mysql -u root
+      => use mysql;
+      => update user set plugin='mysql_native_password' where User='root';
+      => flush privileges;
+      => exit
+      => service mysql restart;
+      => mysql -u root
+   => create WP database
+      => {log out of mysql, if already logged in}
+      => mysql_secure_installation
+         => say 'Y' to all (i.e., accept defaults)
+      => mysql -u root -p
+      => create database blogdb;
+      => create user 'wordpress'@'localhost' identified by '<wpdb_pwd>';
+         => <wpdb_pwd> is the password chosen for the 'wordpress' user
+      => use mysql;
+      => select User, plugin from mysql.user;
+      => update user set plugin='mysql_native_password' where User='wordpress';
+      => flush privileges;
+      => grant all privileges on blogdb.* to 'wordpress'@'localhost';
+      => flush privileges;
+      => exit
 
-2) Install PEAR and postfix e-mail server to support Wordpress notifications.
+   ** FOR Ubuntu 14.0.4 LTS, Wordpress 3.8.5, Apache 2.4.7 **
+   => sudo apr-get install wordpress
+   **********************************************************
+
+2a) Confirm php-mysql is installed.
+   => sudo apt list php-mysql
+
+   If the output does not end in '[installed]', then install that package.
+
+2b) Install PEAR and postfix e-mail server to support Wordpress notifications.
    Note that without this, blank pages are served by the web server after
    performing most Wordpress actions (e.g., saving comments, admin tasks).
 
@@ -26,13 +65,26 @@ Up to date and confirmed for
    - Restart Apache web server
    => sudo apache2ctl restart
 
-3) Load the wp-install.php page and give the proper DB parameters when prompted
+3) Make owner of /var/lib/wordpress and its subdirectories www-data.
 
-4) Ensure the custom encryption module is installed as directed (Admin knows
+4) Set all contents and subdirectories' contents of /usr/share/wordpress (made
+   by step 1) above) to have www-data as their owner. Only set wp-config.php's
+   perms to 640
+
+5) Issue the following command to allow the bbaero site to access Wordpress:
+   => sudo ln -s /usr/share/wordpress /var/www/blog
+ 
+6) Load wp-admin/install.php page. Give the proper DB parameters when prompted.
+   After the initial log in, log out.
+
+   ** FOR Ubuntu 14.0.4 LTS, Wordpress 3.8.5, Apache 2.4.7 **
+   Load the wp-install.php page and give the proper DB parameters when prompted
+   **********************************************************
+
+7) Ensure the custom encryption module is installed as directed (Admin knows
    how to do this. Necessary files are not in github.)
 
-5) Make owner of /var/lib/wordpress and its subdirectories www-data. Add the 
-   following lines just before the "?>" line in 
+8) Add the following lines just before the "..., stop editing!..." line in 
    /usr/share/wordpress/wp-config.php :
      ++++++++++
      /* from http://www.hongkiat.com/blog/update-wordpress-without-ftp/ */
@@ -41,17 +93,12 @@ Up to date and confirmed for
 
    This enables wordpress updates without enabling FTP on the AWS instance.
 
-6) Copy config-default.php into /etc/wordpress. Make owner www-data, set perms
+9) Copy config-default.php into /etc/wordpress. Make owner www-data, set perms
    to 640
 
-7) Set all contents and subdirectories' contents of /usr/share/wordpress (made
-   by step 1) above) to have www-data as their owner. Only set wp-config.php's
-   perms to 640
-
-8) Modify /usr/share/wordpress/wp-include/load.php as follows:
+10) Modify /usr/share/wordpress/wp-includes/load.php as follows:
    
-   - before the following line in function require_wp_db() (near line 330-335
-      somewhere):
+   - before the following line in function require_wp_db():
 
      $wpdb = new wpdb( DB_USER, DB_PASSWORD, DB_NAME, DB_HOST );
 
@@ -70,7 +117,7 @@ Up to date and confirmed for
      ==========
      //BP - support for rudimentarily encrypted DB pwd
      if ( !defined('DB_PASSWORD') ) {
-         require_once( '/home/ubuntu/basic-enc.php' );
+         require_once( '/full/path/to/encryption-module.php' );
          $tmp_dbpwd = bp_enc( DB_ENC_PWD, false );
          define( 'DB_PASSWORD', $tmp_dbpwd );
      }
@@ -79,15 +126,25 @@ Up to date and confirmed for
      $wpdb = new wpdb( DB_USER, DB_PASSWORD, DB_NAME, DB_HOST );
      ==========
 
-Step 9, listed in smaller steps below, secures Wordpress files hosted by Apache
-9a) Change the following directives in /etc/apache2/apache2.conf (i.e. Apache
+11) In wp-config.php, comment out the define lines for DB_USER, DB_PASSWORD,
+    DB_NAME and DB_HOST. Reset the value of DB_PASSWORD to 'password'.
+
+    Add the following lines after the last 'DB_*' define line:
+
+========
+/** BP - include config-default instead of the defines above **/
+require_once('/etc/wordpress/config-default.php');
+========
+
+Step 12, listed in smaller steps below, secures Wordpress files hosted by Apache
+12a) Change the following directives in /etc/apache2/apache2.conf (i.e. Apache
    web server configuration file):
    - in <Directory /var/www> and <Directory /var/www/blog> change
    => AllowOverride File
     to 
    => AllowOverride None
 
-9b) Add the following lines to /etc/apache2/conf-available/security.conf:
+12b) Add the following lines to /etc/apache2/conf-available/security.conf:
 ++++++
 #BP - from https://digwp.com/2010/08/pimp-your-wp-config-php/#security
 # Protect wp-config.php
@@ -96,9 +153,19 @@ Step 9, listed in smaller steps below, secures Wordpress files hosted by Apache
 </Files>
 ++++++ 
 
-10) Issue the following command to allow the bbaero site to access Wordpress:
-   => sudo ln -s /usr/share/wordpress /var/www/blog
- 
-11) Click on the "Blog" link on the bbaero site's navigation bar to test out
+13) Click on the "Blog" link on the bbaero site's navigation bar to test out
      Wordpress
 
+14) At this point the default theme appears. Visit the "Meta->Login" link in
+    the bottom right-hand corner of the blog home page. This should point to
+    blog/wp-login.php.
+
+15) Login as the admin user created in step 6 (as entered into the
+    wp-admin/install.php form)
+
+16) Click on the 'Customize your site' button
+
+17) Because there may be a different theme in use (e.g., Twenty Seventeen
+    vs Twenty Sixteen), roughly try to match bbaero's blog appearance.
+    Use ~/gitrepo/bbaero-site/web/gimp/bbaero-bkg-1440x1080.jpg as the
+    background image.
